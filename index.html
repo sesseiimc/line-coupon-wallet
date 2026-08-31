@@ -141,6 +141,32 @@
         color: var(--muted);
         font-size: 30px;
       }
+      .invite {
+        padding: 26px 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+      }
+      .invite h2 {
+        margin: 0 0 12px;
+        color: var(--theme);
+        font-size: 36px;
+      }
+      .invite p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 30px;
+        line-height: 1.55;
+      }
+      .invite-code {
+        margin: 18px 0;
+        padding: 18px 10px;
+        border: 2px dashed var(--theme);
+        border-radius: 8px;
+        text-align: center;
+        font-size: 38px;
+        font-weight: 900;
+      }
       .modal-backdrop {
         position: fixed;
         inset: 0;
@@ -216,7 +242,8 @@
         coupons: [],
         filter: '可使用',
         pendingRedeem: null,
-        claim: null
+        claim: null,
+        shareCode: ''
       };
       const list = document.getElementById('list');
       const title = document.getElementById('title');
@@ -244,6 +271,7 @@
               type: params.get('type') || ''
             }
           : null;
+        state.shareCode = params.get('shareCode') || '';
 
         if (!state.userId) await resolveLiffUser();
         if (!state.apiUrl || !state.botId) {
@@ -254,6 +282,10 @@
         if (!state.userId) {
           showNotice('請從 LINE 官方帳號按鈕開啟優惠券庫');
           render();
+          return;
+        }
+        if (params.get('view') === 'invite' && state.shareCode) {
+          loadInvite();
           return;
         }
         if (state.claim) {
@@ -290,6 +322,35 @@
         callApi('claim', state.claim, result => {
           applyPayload(result);
           showNotice(result.message || '優惠券已加入你的券庫');
+          render('可使用');
+        });
+      }
+
+      function loadInvite() {
+        callApi('shareView', { shareCode: state.shareCode }, result => {
+          applyPayload(result);
+          renderInvite(result);
+        });
+      }
+
+      function renderInvite(result) {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="invite">
+            <h2>好友邀請禮</h2>
+            <p>你收到一份好友分享優惠。點擊下方按鈕後，優惠券會加入你的券庫。</p>
+            <div class="invite-code">${escapeHtml(result.shareCode || state.shareCode)}</div>
+            <button class="redeem" id="claimShareCoupon">領取好友邀請券</button>
+          </section>
+        `;
+        document.getElementById('claimShareCoupon').addEventListener('click', claimShareCoupon);
+      }
+
+      function claimShareCoupon() {
+        showNotice('好友邀請券加入中...');
+        callApi('shareClaim', { shareCode: state.shareCode }, result => {
+          applyPayload(result);
+          showNotice(result.message || '好友邀請券已加入');
           render('可使用');
         });
       }
