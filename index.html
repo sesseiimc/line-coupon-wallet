@@ -141,6 +141,26 @@
         color: var(--muted);
         font-size: 24px;
       }
+      .loading {
+        display: grid;
+        place-items: center;
+        gap: 14px;
+        padding: 54px 12px;
+        color: var(--muted);
+        font-size: 24px;
+        text-align: center;
+      }
+      .spinner {
+        width: 46px;
+        height: 46px;
+        border: 5px solid rgba(6, 199, 85, .18);
+        border-top-color: var(--theme);
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
       .invite {
         padding: 26px 18px;
         border: 1px solid var(--line);
@@ -268,6 +288,9 @@
         botId: '',
         liffId: '',
         userId: '',
+        displayName: '',
+        sharerName: '',
+        friendFlag: false,
         coupons: [],
         filter: '可使用',
         pendingRedeem: null,
@@ -289,11 +312,14 @@
       bootstrap();
 
       async function bootstrap() {
+        showLoading('讀取優惠券庫...');
         const params = mergedParams();
         state.apiUrl = params.get('apiUrl') || '';
         state.botId = params.get('botId') || params.get('bot') || '';
         state.liffId = params.get('liffId') || '';
         state.userId = params.get('userId') || params.get('uid') || '';
+        state.displayName = params.get('displayName') || '';
+        state.sharerName = params.get('sharerName') || '';
         state.claim = params.get('view') === 'claim'
           ? {
               src: params.get('src') || 'DEFAULT',
@@ -307,6 +333,7 @@
         state.sourceCode = params.get('src') || 'SHARE';
 
         if (!state.userId) await resolveLiffUser();
+        await resolveFriendship();
         if (!state.apiUrl || !state.botId) {
           showNotice('優惠券庫尚未完成設定');
           render();
@@ -343,12 +370,25 @@
           }
           const profile = await liff.getProfile();
           state.userId = profile.userId || '';
+          state.displayName = profile.displayName || '';
         } catch (error) {
           showNotice('無法讀取 LINE 身分，請從 LINE 內重新開啟');
         }
       }
 
+      async function resolveFriendship() {
+        state.friendFlag = false;
+        if (!window.liff || !state.liffId || !liff.isLoggedIn()) return;
+        try {
+          const friendship = await liff.getFriendship();
+          state.friendFlag = !!friendship.friendFlag;
+        } catch (error) {
+          state.friendFlag = false;
+        }
+      }
+
       function loadWallet() {
+        showLoading('讀取優惠券庫...');
         callApi('wallet', {}, result => {
           applyPayload(result);
           render();
@@ -356,6 +396,7 @@
       }
 
       function claimCoupon() {
+        showLoading('優惠券加入中...');
         showNotice('優惠券加入中...');
         callApi('claim', state.claim, result => {
           applyPayload(result);
@@ -365,6 +406,7 @@
       }
 
       function loadInvite() {
+        showLoading('讀取好友邀請...');
         callApi('shareView', { shareCode: state.shareCode }, result => {
           applyPayload(result);
           renderInvite(result);
@@ -373,15 +415,51 @@
 
       function renderInvite(result) {
         tabButtons.forEach(button => button.classList.remove('active'));
+        if (!state.friendFlag) {
+          list.innerHTML = `
+            <section class="invite">
+              <h2>先加入官方帳號</h2>
+              <p>你收到 ${escapeHtml(result.sharerName || state.sharerName || 'LINE 好友')} 的好友分享優惠。加入官方帳號後，才可以領取好友邀請券。</p>
+              <div class="invite-code">${escapeHtml(result.shareCode || state.shareCode)}</div>
+              <button class="redeem" id="requestFriendship">加入官方帳號並領券</button>
+            </section>
+          `;
+          document.getElementById('requestFriendship').addEventListener('click', requestOfficialAccountFriendship);
+          return;
+        }
         list.innerHTML = `
           <section class="invite">
             <h2>好友邀請禮</h2>
-            <p>你收到一份好友分享優惠。點擊下方按鈕後，優惠券會加入你的券庫。</p>
+            <p>你收到 ${escapeHtml(result.sharerName || state.sharerName || 'LINE 好友')} 的好友分享優惠。點擊下方按鈕後，優惠券會加入你的券庫。</p>
             <div class="invite-code">${escapeHtml(result.shareCode || state.shareCode)}</div>
             <button class="redeem" id="claimShareCoupon">領取好友邀請券</button>
           </section>
         `;
         document.getElementById('claimShareCoupon').addEventListener('click', claimShareCoupon);
+      }
+
+      async function requestOfficialAccountFriendship() {
+        if (!window.liff || !liff.isInClient()) {
+          showNotice('請在 LINE 內開啟，才能加入官方帳號');
+          return;
+        }
+        try {
+          if (typeof liff.requestFriendship === 'function') {
+            await liff.requestFriendship();
+          } else {
+            showNotice('請先加入官方帳號，再回到此頁領券');
+            return;
+          }
+          await resolveFriendship();
+          if (state.friendFlag) {
+            showNotice('已加入官方帳號，可以領券了');
+            loadInvite();
+          } else {
+            showNotice('加入尚未完成，請完成加入後再領券');
+          }
+        } catch (error) {
+          showNotice('加入官方帳號尚未完成，請再試一次');
+        }
       }
 
       function renderShareSender() {
@@ -391,9 +469,9 @@
             ${state.shareImageUrl ? `<img src="${escapeAttr(state.shareImageUrl)}" alt="">` : ''}
             <div class="share-card-body">
               <h2>🎁 專屬好友分享卡已就緒</h2>
-              <p><strong>【好友分享券】</strong><br>您的專屬 VIP 邀請碼：<strong>${escapeHtml(state.shareCode)}</strong></p>
+              <p><strong>【好友分享券】</strong><br>${escapeHtml(state.sharerName || state.displayName || '您的')} 專屬 VIP 邀請碼：<strong>${escapeHtml(state.shareCode)}</strong></p>
               <p>💡 點擊下方按鈕，可直接發送【專屬彩色圖文禮卡】給 LINE 好友！</p>
-              <p>✨ 好友加入後，您與好友將會同時各獲得一張專屬優惠券！</p>
+              <p>✨ 好友加入官方帳號後，您與好友將會同時各獲得一張專屬優惠券！</p>
               <button class="redeem" id="shareToFriends">📱 一鍵轉發給 LINE 好友</button>
             </div>
           </section>
@@ -406,7 +484,8 @@
           showNotice('請在 LINE 內開啟，才能直接選好友轉發');
           return;
         }
-        if (!liff.isApiAvailable('shareTargetPicker')) {
+        const canShare = await liff.isApiAvailable('shareTargetPicker');
+        if (!canShare) {
           showNotice('目前 LINE 版本不支援好友選擇器，請更新 LINE 後再試');
           return;
         }
@@ -429,9 +508,9 @@
             contents: [
               { type: 'text', text: '🎁 專屬好友分享卡已就緒', weight: 'bold', size: 'xl', color: getThemeColor(), wrap: true },
               { type: 'text', text: '【好友分享券】', weight: 'bold', size: 'lg', color: '#333333', wrap: true },
-              { type: 'text', text: '您的專屬 VIP 邀請碼：' + state.shareCode, weight: 'bold', size: 'lg', color: '#333333', wrap: true },
+              { type: 'text', text: (state.sharerName || state.displayName || '好友') + ' 的專屬 VIP 邀請碼：' + state.shareCode, weight: 'bold', size: 'lg', color: '#333333', wrap: true },
               { type: 'text', text: '💡 點擊下方按鈕即可領取好友邀請優惠券。', size: 'md', color: '#666666', wrap: true },
-              { type: 'text', text: '✨ 加入後，您與好友將會同時各獲得一張專屬優惠券！', size: 'md', color: '#666666', wrap: true }
+              { type: 'text', text: '✨ 加入官方帳號後，您與好友將會同時各獲得一張專屬優惠券！', size: 'md', color: '#666666', wrap: true }
             ]
           },
           footer: {
@@ -474,7 +553,8 @@
           botId: state.botId,
           apiUrl: state.apiUrl,
           shareCode: state.shareCode,
-          src: state.sourceCode
+          src: state.sourceCode,
+          sharerName: state.sharerName || state.displayName
         });
         return location.origin + location.pathname + '?' + params.toString();
       }
@@ -484,10 +564,11 @@
       }
 
       function claimShareCoupon() {
+        showLoading('好友邀請券加入中...');
         showNotice('好友邀請券加入中...');
         callApi('shareClaim', { shareCode: state.shareCode }, result => {
           applyPayload(result);
-          showNotice(result.message || '好友邀請券已加入');
+          showNotice(result.chatPushOk === false ? '優惠券已加入券庫；聊天室推送需先加入官方帳號' : (result.message || '好友邀請券已加入'));
           render('可使用');
         });
       }
@@ -523,7 +604,9 @@
           api,
           callback,
           botId: state.botId,
-          userId: state.userId
+          userId: state.userId,
+          displayName: state.displayName,
+          friendFlag: String(state.friendFlag)
         });
         Object.entries(extraParams || {}).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== '') params.set(key, value);
@@ -570,6 +653,8 @@
             </div>
             <div class="offer">${escapeHtml(coupon.offer)}</div>
             <div class="code">${escapeHtml(coupon.code)}</div>
+            ${coupon.sharerName ? `<div class="meta">分享者：${escapeHtml(coupon.sharerName)}</div>` : ''}
+            ${coupon.invitedName ? `<div class="meta">領取人：${escapeHtml(coupon.invitedName)}</div>` : ''}
             <div class="meta">使用期限：${escapeHtml(coupon.expiresAt)}</div>
             ${coupon.redeemedAt ? `<div class="meta">核銷日期：${escapeHtml(coupon.redeemedAt)}</div>` : ''}
             <div class="terms">${escapeHtml(coupon.terms)}</div>
@@ -595,6 +680,10 @@
         notice.textContent = message;
         notice.style.display = 'block';
         setTimeout(() => { notice.style.display = 'none'; }, 3500);
+      }
+
+      function showLoading(message) {
+        list.innerHTML = '<div class="loading"><div class="spinner"></div><div>' + escapeHtml(message || '讀取中...') + '</div></div>';
       }
 
       function escapeHtml(value) {
@@ -628,4 +717,3 @@
     </script>
   </body>
 </html>
-
