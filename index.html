@@ -135,6 +135,14 @@
         color: white;
         font-size: 25px;
       }
+      .secondary-action {
+        width: 100%;
+        margin-top: 12px;
+        border-color: var(--line);
+        background: white;
+        color: var(--text);
+        font-size: 24px;
+      }
       .redeem:disabled { opacity: .55; }
       .empty {
         padding: 48px 12px;
@@ -291,6 +299,7 @@
         userId: '',
         displayName: '',
         sharerName: '',
+        botBasicId: '',
         friendFlag: false,
         joinedFromInvite: false,
         hasCachedWallet: false,
@@ -496,9 +505,12 @@
             <p>這份好友邀請禮是提供給首次加入官方帳號的新朋友專屬，因此目前無法重複領取。</p>
             <p>您可以到「我的優惠券庫」查看目前可使用的優惠券。</p>
             <button class="redeem" id="openWallet">查看我的優惠券庫</button>
+            ${officialChatUrl() ? `<button class="secondary-action" id="openOfficialLine">前往官方 LINE</button>` : ''}
           </section>
         `;
         document.getElementById('openWallet').addEventListener('click', loadWallet);
+        const officialLineButton = document.getElementById('openOfficialLine');
+        if (officialLineButton) officialLineButton.addEventListener('click', openOfficialLine);
       }
 
       function renderSetupNotice() {
@@ -658,9 +670,24 @@
         showNotice('好友邀請券加入中...');
         callApi('shareClaim', { shareCode: state.shareCode }, result => {
           applyPayload(result);
-          showNotice(result.chatPushOk === false ? '優惠券已加入券庫；聊天室推送需先加入官方帳號' : (result.message || '好友邀請券已加入'));
-          render('可使用');
+          renderShareClaimResult(result);
         });
+      }
+
+      function renderShareClaimResult(result) {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="invite">
+            <h2>好友邀請券已入帳</h2>
+            <p>${escapeHtml(result.chatPushOk === false ? '優惠券已加入券庫。若聊天室尚未收到訊息，請確認已加入官方帳號。' : '優惠券已透過官方 LINE 發送給您。')}</p>
+            <p>您也可以回到優惠券庫查看目前可使用的優惠券。</p>
+            ${officialChatUrl() ? `<button class="redeem" id="openOfficialLineAfterClaim">前往官方 LINE 查看</button>` : ''}
+            <button class="secondary-action" id="openWalletAfterClaim">查看我的優惠券庫</button>
+          </section>
+        `;
+        const officialLineButton = document.getElementById('openOfficialLineAfterClaim');
+        if (officialLineButton) officialLineButton.addEventListener('click', openOfficialLine);
+        document.getElementById('openWalletAfterClaim').addEventListener('click', () => render('可使用'));
       }
 
       function redeemCoupon(code, button) {
@@ -725,6 +752,7 @@
       function applyPayload(result) {
         if (result.themeColor) document.documentElement.style.setProperty('--theme', result.themeColor);
         if (result.brandName) title.textContent = result.brandName + '｜我的優惠券庫';
+        if (result.botBasicId) state.botBasicId = result.botBasicId;
         state.coupons = result.coupons || [];
         saveWalletCache(result);
       }
@@ -755,6 +783,7 @@
           localStorage.setItem(walletCacheKey(), JSON.stringify({
             brandName: result.brandName || title.textContent.replace(/｜我的優惠券庫$/, ''),
             themeColor: result.themeColor || getThemeColor(),
+            botBasicId: result.botBasicId || state.botBasicId || '',
             coupons: result.coupons,
             cachedAt: Date.now()
           }));
@@ -810,6 +839,21 @@
 
       function showLoading(message) {
         list.innerHTML = '<div class="loading"><div class="spinner"></div><div>' + escapeHtml(message || '讀取中...') + '</div></div>';
+      }
+
+      function officialChatUrl() {
+        if (!state.botBasicId) return '';
+        return 'https://line.me/R/oaMessage/' + encodeURIComponent(state.botBasicId);
+      }
+
+      function openOfficialLine() {
+        const url = officialChatUrl();
+        if (!url) return;
+        if (window.liff && liff.isInClient()) {
+          liff.openWindow({ url, external: false });
+          return;
+        }
+        location.href = url;
       }
 
       function escapeHtml(value) {
