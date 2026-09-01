@@ -83,6 +83,14 @@
         border-radius: 8px;
         background: white;
       }
+      .card-image {
+        width: calc(100% + 32px);
+        height: 180px;
+        margin: -20px -16px 16px;
+        border-radius: 8px 8px 0 0;
+        object-fit: cover;
+        display: block;
+      }
       .top {
         display: flex;
         justify-content: space-between;
@@ -877,6 +885,7 @@
         }
         list.innerHTML = items.map(coupon => `
           <article class="card">
+            ${coupon.imageUrl ? `<img class="card-image" src="${escapeAttr(coupon.imageUrl)}" alt="">` : ''}
             <div class="top">
               <div class="type">${escapeHtml(coupon.type)}</div>
               <div class="status ${statusClass[coupon.status] || 'used'}">${escapeHtml(coupon.status)}</div>
@@ -982,4 +991,5 @@
     </script>
   </body>
 </html>
+
 
