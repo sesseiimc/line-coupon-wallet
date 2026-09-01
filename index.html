@@ -482,7 +482,7 @@
               <button class="redeem" id="requestFriendship">加入官方帳號並領券</button>
             </section>
           `;
-          document.getElementById('requestFriendship').addEventListener('click', requestOfficialAccountFriendship);
+          document.getElementById('requestFriendship').addEventListener('click', prepareShareThenOpenOfficialLine);
           return;
         }
         list.innerHTML = `
@@ -493,7 +493,7 @@
             <button class="redeem" id="claimShareCoupon">加入官方帳號領取</button>
           </section>
         `;
-        document.getElementById('claimShareCoupon').addEventListener('click', claimShareCoupon);
+        document.getElementById('claimShareCoupon').addEventListener('click', prepareShareThenOpenOfficialLine);
       }
 
       function renderExistingFriendNotice() {
@@ -555,13 +555,46 @@
           await resolveFriendship();
           if (state.friendFlag) {
             state.joinedFromInvite = true;
-            claimShareCoupon();
+            claimShareCoupon(true);
           } else {
             showNotice('加入尚未完成，請完成加入後再領券');
           }
         } catch (error) {
           showNotice('加入官方帳號尚未完成，請再試一次');
         }
+      }
+
+      function prepareShareThenOpenOfficialLine() {
+        if (!state.shareCode) return;
+        showLoading('即將開啟官方 LINE...');
+        callApi('sharePrepare', { shareCode: state.shareCode }, result => {
+          applyPayload(result);
+          if (result.status === 'alreadyFriend') {
+            renderExistingFriendNotice();
+            return;
+          }
+          if (result.status === 'alreadyClaimed') {
+            render('可使用');
+            return;
+          }
+          renderOpeningOfficialLine();
+          setTimeout(openOfficialLine, 500);
+        }, () => {
+          renderInviteSetupNotice();
+        });
+      }
+
+      function renderOpeningOfficialLine() {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="invite">
+            <h2>即將開啟官方 LINE</h2>
+            <p>請在官方帳號完成加入。加入成功後，好友邀請券會由官方 LINE 發送給您。</p>
+            ${officialChatUrl() ? `<button class="redeem" id="openOfficialLineNow">前往官方 LINE</button>` : ''}
+          </section>
+        `;
+        const officialLineButton = document.getElementById('openOfficialLineNow');
+        if (officialLineButton) officialLineButton.addEventListener('click', openOfficialLine);
       }
 
       function renderShareSender() {
@@ -665,16 +698,16 @@
         return getComputedStyle(document.documentElement).getPropertyValue('--theme').trim() || '#06c755';
       }
 
-      function claimShareCoupon() {
+      function claimShareCoupon(autoOpenOfficial) {
         showLoading('好友邀請券加入中...');
         showNotice('好友邀請券加入中...');
         callApi('shareClaim', { shareCode: state.shareCode }, result => {
           applyPayload(result);
-          renderShareClaimResult(result);
+          renderShareClaimResult(result, autoOpenOfficial);
         });
       }
 
-      function renderShareClaimResult(result) {
+      function renderShareClaimResult(result, autoOpenOfficial) {
         tabButtons.forEach(button => button.classList.remove('active'));
         list.innerHTML = `
           <section class="invite">
@@ -688,6 +721,9 @@
         const officialLineButton = document.getElementById('openOfficialLineAfterClaim');
         if (officialLineButton) officialLineButton.addEventListener('click', openOfficialLine);
         document.getElementById('openWalletAfterClaim').addEventListener('click', () => render('可使用'));
+        if (autoOpenOfficial && officialChatUrl()) {
+          setTimeout(openOfficialLine, 900);
+        }
       }
 
       function redeemCoupon(code, button) {
