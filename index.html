@@ -300,6 +300,7 @@
         displayName: '',
         sharerName: '',
         botBasicId: '',
+        officialLineUrl: '',
         friendFlag: false,
         joinedFromInvite: false,
         hasCachedWallet: false,
@@ -342,6 +343,7 @@
         state.displayName = params.get('displayName') || '';
         state.sharerName = params.get('sharerName') || '';
         state.botBasicId = params.get('botBasicId') || params.get('basicId') || '';
+        state.officialLineUrl = params.get('officialLineUrl') || params.get('lineUrl') || '';
         state.claim = params.get('view') === 'claim'
           ? {
               src: params.get('src') || 'DEFAULT',
@@ -474,14 +476,7 @@
       function loadInvite() {
         setInviteChrome('即將前往官方 LINE 完成領取');
         showLoading('即將開啟官方 LINE...');
-        callApi('shareView', { shareCode: state.shareCode }, result => {
-          applyPayload(result);
-          if (state.friendFlag) {
-            renderExistingFriendNotice();
-            return;
-          }
-          prepareShareThenOpenOfficialLine();
-        });
+        prepareShareThenOpenOfficialLine();
       }
 
       function setWalletChrome() {
@@ -532,12 +527,9 @@
             <p>這份好友邀請禮是提供給首次加入官方帳號的新朋友專屬，因此目前無法重複領取。</p>
             <p>您可以到「我的優惠券庫」查看目前可使用的優惠券。</p>
             <button class="redeem" id="openWallet">查看我的優惠券庫</button>
-            ${officialChatUrl() ? `<button class="secondary-action" id="openOfficialLine">前往官方 LINE</button>` : ''}
           </section>
         `;
         document.getElementById('openWallet').addEventListener('click', loadWallet);
-        const officialLineButton = document.getElementById('openOfficialLine');
-        if (officialLineButton) officialLineButton.addEventListener('click', openOfficialLine);
       }
 
       function renderSetupNotice() {
@@ -670,7 +662,7 @@
       }
 
       function buildShareFlexMessage() {
-        const inviteUrl = buildInviteUrl();
+        const inviteUrl = buildOaMessageUrl() || buildInviteUrl();
         const bubble = {
           type: 'bubble',
           body: {
@@ -681,7 +673,7 @@
               { type: 'text', text: '🎁 專屬好友分享卡入帳中', weight: 'bold', size: 'xl', color: getThemeColor(), wrap: true },
               { type: 'text', text: '【好友分享券】', weight: 'bold', size: 'lg', color: '#333333', wrap: true },
               { type: 'text', text: (state.sharerName || state.displayName || '好友') + ' 的專屬 VIP 邀請碼：' + state.shareCode, weight: 'bold', size: 'lg', color: '#333333', wrap: true },
-              { type: 'text', text: '💡 點擊下方按鈕即可領取好友邀請優惠券。', size: 'md', color: '#666666', wrap: true },
+              { type: 'text', text: '💡 點擊下方按鈕會開啟官方帳號，送出預帶訊息後即可領取好友邀請優惠券。', size: 'md', color: '#666666', wrap: true },
               { type: 'text', text: '✨ 加入官方帳號後，您與好友將會同時各獲得一張專屬優惠券！', size: 'md', color: '#666666', wrap: true }
             ]
           },
@@ -718,12 +710,20 @@
         };
       }
 
+      function buildOaMessageUrl() {
+        const basicId = normalizedBotBasicId();
+        if (!basicId) return '';
+        const message = '🎁領取好友分享禮【VIP推薦碼' + state.shareCode + '】';
+        return 'line://oaMessage/' + basicId + '/?' + encodeURIComponent(message);
+      }
+
       function buildInviteUrl() {
         const params = new URLSearchParams({
           view: 'invite',
           liffId: state.liffId,
           botId: state.botId,
           botBasicId: state.botBasicId,
+          officialLineUrl: state.officialLineUrl,
           apiUrl: state.apiUrl,
           shareCode: state.shareCode,
           src: state.sourceCode,
@@ -827,6 +827,7 @@
         if (result.themeColor) document.documentElement.style.setProperty('--theme', result.themeColor);
         if (result.brandName) title.textContent = result.brandName + '｜我的優惠券庫';
         if (result.botBasicId) state.botBasicId = result.botBasicId;
+        if (result.officialLineUrl) state.officialLineUrl = result.officialLineUrl;
         state.coupons = result.coupons || [];
         saveWalletCache(result);
       }
@@ -916,9 +917,10 @@
       }
 
       function officialChatUrl() {
+        if (state.officialLineUrl) return state.officialLineUrl;
         const basicId = normalizedBotBasicId();
         if (!basicId) return '';
-        return 'https://line.me/R/ti/p/' + encodeURIComponent(basicId);
+        return 'https://line.me/R/ti/p/' + basicId;
       }
 
       function officialLineSchemeUrl() {
@@ -936,6 +938,10 @@
       function openOfficialLine() {
         const url = officialChatUrl();
         if (!url) return;
+        if (state.officialLineUrl) {
+          window.location.href = url;
+          return;
+        }
         const appUrl = officialLineSchemeUrl();
         if (appUrl) {
           window.location.href = appUrl;
@@ -976,3 +982,4 @@
     </script>
   </body>
 </html>
+
