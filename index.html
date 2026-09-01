@@ -627,6 +627,7 @@
           displayName: state.displayName,
           friendFlag: String(state.friendFlag)
         });
+        if (state.joinedFromInvite) params.set('joinedFromInvite', 'true');
         Object.entries(extraParams || {}).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== '') params.set(key, value);
         });
@@ -736,3 +737,4 @@
     </script>
   </body>
 </html>
+
