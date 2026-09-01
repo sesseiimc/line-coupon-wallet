@@ -341,6 +341,7 @@
         state.userId = params.get('userId') || params.get('uid') || '';
         state.displayName = params.get('displayName') || '';
         state.sharerName = params.get('sharerName') || '';
+        state.botBasicId = params.get('botBasicId') || params.get('basicId') || '';
         state.claim = params.get('view') === 'claim'
           ? {
               src: params.get('src') || 'DEFAULT',
@@ -597,6 +598,11 @@
         if (!state.shareCode) return;
         setInviteChrome('即將前往官方 LINE 完成領取');
         showLoading('即將開啟官方 LINE...');
+        let opened = false;
+        if (officialChatUrl()) {
+          opened = true;
+          setTimeout(openOfficialLine, 150);
+        }
         callApi('sharePrepare', { shareCode: state.shareCode }, result => {
           applyPayload(result);
           if (result.status === 'alreadyFriend') {
@@ -608,9 +614,9 @@
             return;
           }
           renderOpeningOfficialLine();
-          setTimeout(openOfficialLine, 500);
+          if (!opened) setTimeout(openOfficialLine, 150);
         }, () => {
-          renderInviteSetupNotice();
+          if (!opened) renderInviteSetupNotice();
         });
       }
 
@@ -717,6 +723,7 @@
           view: 'invite',
           liffId: state.liffId,
           botId: state.botId,
+          botBasicId: state.botBasicId,
           apiUrl: state.apiUrl,
           shareCode: state.shareCode,
           src: state.sourceCode,
@@ -954,3 +961,4 @@
     </script>
   </body>
 </html>
+
