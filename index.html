@@ -291,6 +291,7 @@
         displayName: '',
         sharerName: '',
         friendFlag: false,
+        joinedFromInvite: false,
         coupons: [],
         filter: '可使用',
         pendingRedeem: null,
@@ -409,6 +410,10 @@
         showLoading('讀取好友邀請...');
         callApi('shareView', { shareCode: state.shareCode }, result => {
           applyPayload(result);
+          if (state.friendFlag) {
+            renderExistingFriendNotice();
+            return;
+          }
           renderInvite(result);
         });
       }
@@ -438,6 +443,20 @@
         document.getElementById('claimShareCoupon').addEventListener('click', claimShareCoupon);
       }
 
+      function renderExistingFriendNotice() {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="invite">
+            <h2>您已是我們的好友囉</h2>
+            <p>感謝您一直關注我們。</p>
+            <p>這份好友邀請禮是提供給首次加入官方帳號的新朋友專屬，因此目前無法重複領取。</p>
+            <p>您可以到「我的優惠券庫」查看目前可使用的優惠券。</p>
+            <button class="redeem" id="openWallet">查看我的優惠券庫</button>
+          </section>
+        `;
+        document.getElementById('openWallet').addEventListener('click', loadWallet);
+      }
+
       async function requestOfficialAccountFriendship() {
         if (!window.liff || !liff.isInClient()) {
           showNotice('請在 LINE 內開啟，才能加入官方帳號');
@@ -452,8 +471,8 @@
           }
           await resolveFriendship();
           if (state.friendFlag) {
-            showNotice('已加入官方帳號，可以領券了');
-            loadInvite();
+            state.joinedFromInvite = true;
+            claimShareCoupon();
           } else {
             showNotice('加入尚未完成，請完成加入後再領券');
           }
@@ -468,7 +487,7 @@
           <section class="share-card-preview">
             ${state.shareImageUrl ? `<img src="${escapeAttr(state.shareImageUrl)}" alt="">` : ''}
             <div class="share-card-body">
-              <h2>🎁 專屬好友分享卡已就緒</h2>
+              <h2>🎁 專屬好友分享卡入帳中</h2>
               <p><strong>【好友分享券】</strong><br>${escapeHtml(state.sharerName || state.displayName || '您的')} 專屬 VIP 邀請碼：<strong>${escapeHtml(state.shareCode)}</strong></p>
               <p>💡 點擊下方按鈕，可直接發送【專屬彩色圖文禮卡】給 LINE 好友！</p>
               <p>✨ 好友加入官方帳號後，您與好友將會同時各獲得一張專屬優惠券！</p>
@@ -506,7 +525,7 @@
             layout: 'vertical',
             spacing: 'md',
             contents: [
-              { type: 'text', text: '🎁 專屬好友分享卡已就緒', weight: 'bold', size: 'xl', color: getThemeColor(), wrap: true },
+              { type: 'text', text: '🎁 專屬好友分享卡入帳中', weight: 'bold', size: 'xl', color: getThemeColor(), wrap: true },
               { type: 'text', text: '【好友分享券】', weight: 'bold', size: 'lg', color: '#333333', wrap: true },
               { type: 'text', text: (state.sharerName || state.displayName || '好友') + ' 的專屬 VIP 邀請碼：' + state.shareCode, weight: 'bold', size: 'lg', color: '#333333', wrap: true },
               { type: 'text', text: '💡 點擊下方按鈕即可領取好友邀請優惠券。', size: 'md', color: '#666666', wrap: true },
