@@ -19,28 +19,28 @@
         background: var(--bg);
         color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
-        font-size: 30px;
+        font-size: 24px;
       }
       header {
         background: var(--theme);
         color: white;
-        padding: 30px 22px 32px;
+        padding: 24px 20px 26px;
       }
       h1 {
         margin: 0;
-        font-size: 38px;
+        font-size: 30px;
         line-height: 1.2;
       }
       .sub {
         margin-top: 10px;
         color: rgba(255, 255, 255, .9);
-        font-size: 27px;
+        font-size: 21px;
       }
       main {
         width: 100%;
         max-width: 430px;
         margin: 0 auto;
-        padding: 16px 14px 34px;
+        padding: 14px 14px 30px;
       }
       .tabs {
         display: grid;
@@ -56,7 +56,7 @@
         color: var(--text);
         padding: 18px 8px;
         font: inherit;
-        font-size: 27px;
+        font-size: 22px;
         font-weight: 700;
       }
       button.active {
@@ -73,7 +73,7 @@
         border-radius: 8px;
         background: #17202a;
         color: white;
-        font-size: 27px;
+        font-size: 22px;
       }
       .card {
         margin-bottom: 16px;
@@ -90,14 +90,14 @@
       }
       .type {
         color: var(--theme);
-        font-size: 28px;
+        font-size: 22px;
         font-weight: 800;
       }
       .status {
         padding: 7px 11px;
         border-radius: 999px;
         white-space: nowrap;
-        font-size: 22px;
+        font-size: 17px;
         font-weight: 800;
       }
       .status.ok { color: #0b7d45; background: #e8f7ef; }
@@ -105,7 +105,7 @@
       .status.expired { color: var(--danger); background: #fff0ec; }
       .offer {
         margin-top: 10px;
-        font-size: 35px;
+        font-size: 28px;
         font-weight: 850;
       }
       .code {
@@ -114,14 +114,14 @@
         border: 2px dashed var(--theme);
         border-radius: 8px;
         text-align: center;
-        font-size: 41px;
+        font-size: 34px;
         font-weight: 900;
         letter-spacing: 0;
       }
       .meta,
       .terms {
         color: var(--muted);
-        font-size: 30px;
+        font-size: 24px;
         line-height: 1.55;
         white-space: pre-line;
       }
@@ -132,14 +132,14 @@
         border-color: var(--theme);
         background: var(--theme);
         color: white;
-        font-size: 31px;
+        font-size: 25px;
       }
       .redeem:disabled { opacity: .55; }
       .empty {
         padding: 48px 12px;
         text-align: center;
         color: var(--muted);
-        font-size: 30px;
+        font-size: 24px;
       }
       .invite {
         padding: 26px 18px;
@@ -150,12 +150,12 @@
       .invite h2 {
         margin: 0 0 12px;
         color: var(--theme);
-        font-size: 36px;
+        font-size: 29px;
       }
       .invite p {
         margin: 0 0 18px;
         color: var(--muted);
-        font-size: 30px;
+        font-size: 24px;
         line-height: 1.55;
       }
       .invite-code {
@@ -164,8 +164,37 @@
         border: 2px dashed var(--theme);
         border-radius: 8px;
         text-align: center;
-        font-size: 38px;
+        font-size: 30px;
         font-weight: 900;
+      }
+      .share-card-preview {
+        overflow: hidden;
+        margin-bottom: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+      }
+      .share-card-preview img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 20 / 13;
+        object-fit: cover;
+        background: #e8ecef;
+      }
+      .share-card-body {
+        padding: 20px 16px;
+      }
+      .share-card-body h2 {
+        margin: 0 0 12px;
+        color: var(--theme);
+        font-size: 29px;
+        line-height: 1.25;
+      }
+      .share-card-body p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 24px;
+        line-height: 1.55;
       }
       .modal-backdrop {
         position: fixed;
@@ -187,13 +216,13 @@
       }
       .modal h2 {
         margin: 0 0 12px;
-        font-size: 34px;
+        font-size: 28px;
       }
       .modal p {
         margin: 0;
         color: var(--muted);
         line-height: 1.45;
-        font-size: 28px;
+        font-size: 23px;
       }
       .modal-actions {
         display: grid;
@@ -243,7 +272,9 @@
         filter: '可使用',
         pendingRedeem: null,
         claim: null,
-        shareCode: ''
+        shareCode: '',
+        shareImageUrl: '',
+        sourceCode: ''
       };
       const list = document.getElementById('list');
       const title = document.getElementById('title');
@@ -272,6 +303,8 @@
             }
           : null;
         state.shareCode = params.get('shareCode') || '';
+        state.shareImageUrl = params.get('imageUrl') || '';
+        state.sourceCode = params.get('src') || 'SHARE';
 
         if (!state.userId) await resolveLiffUser();
         if (!state.apiUrl || !state.botId) {
@@ -282,6 +315,11 @@
         if (!state.userId) {
           showNotice('請從 LINE 官方帳號按鈕開啟優惠券庫');
           render();
+          return;
+        }
+        if (params.get('view') === 'shareSend' && state.shareCode) {
+          renderShareSender();
+          setTimeout(shareToLineFriends, 500);
           return;
         }
         if (params.get('view') === 'invite' && state.shareCode) {
@@ -344,6 +382,105 @@
           </section>
         `;
         document.getElementById('claimShareCoupon').addEventListener('click', claimShareCoupon);
+      }
+
+      function renderShareSender() {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="share-card-preview">
+            ${state.shareImageUrl ? `<img src="${escapeAttr(state.shareImageUrl)}" alt="">` : ''}
+            <div class="share-card-body">
+              <h2>🎁 專屬好友分享卡已就緒</h2>
+              <p><strong>【好友分享券】</strong><br>您的專屬 VIP 邀請碼：<strong>${escapeHtml(state.shareCode)}</strong></p>
+              <p>💡 點擊下方按鈕，可直接發送【專屬彩色圖文禮卡】給 LINE 好友！</p>
+              <p>✨ 好友加入後，您與好友將會同時各獲得一張專屬優惠券！</p>
+              <button class="redeem" id="shareToFriends">📱 一鍵轉發給 LINE 好友</button>
+            </div>
+          </section>
+        `;
+        document.getElementById('shareToFriends').addEventListener('click', shareToLineFriends);
+      }
+
+      async function shareToLineFriends() {
+        if (!window.liff || !liff.isInClient()) {
+          showNotice('請在 LINE 內開啟，才能直接選好友轉發');
+          return;
+        }
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+          showNotice('目前 LINE 版本不支援好友選擇器，請更新 LINE 後再試');
+          return;
+        }
+        try {
+          const result = await liff.shareTargetPicker([buildShareFlexMessage()]);
+          if (result) showNotice('已送出好友分享卡');
+        } catch (error) {
+          showNotice('尚未完成分享，請再點一次按鈕');
+        }
+      }
+
+      function buildShareFlexMessage() {
+        const inviteUrl = buildInviteUrl();
+        const bubble = {
+          type: 'bubble',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'md',
+            contents: [
+              { type: 'text', text: '🎁 專屬好友分享卡已就緒', weight: 'bold', size: 'xl', color: getThemeColor(), wrap: true },
+              { type: 'text', text: '【好友分享券】', weight: 'bold', size: 'lg', color: '#333333', wrap: true },
+              { type: 'text', text: '您的專屬 VIP 邀請碼：' + state.shareCode, weight: 'bold', size: 'lg', color: '#333333', wrap: true },
+              { type: 'text', text: '💡 點擊下方按鈕即可領取好友邀請優惠券。', size: 'md', color: '#666666', wrap: true },
+              { type: 'text', text: '✨ 加入後，您與好友將會同時各獲得一張專屬優惠券！', size: 'md', color: '#666666', wrap: true }
+            ]
+          },
+          footer: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'button',
+                style: 'primary',
+                color: getThemeColor(),
+                action: {
+                  type: 'uri',
+                  label: '領取好友邀請券',
+                  uri: inviteUrl
+                }
+              }
+            ]
+          }
+        };
+        if (state.shareImageUrl) {
+          bubble.hero = {
+            type: 'image',
+            url: state.shareImageUrl,
+            size: 'full',
+            aspectRatio: '20:13',
+            aspectMode: 'cover'
+          };
+        }
+        return {
+          type: 'flex',
+          altText: '好友分享券',
+          contents: bubble
+        };
+      }
+
+      function buildInviteUrl() {
+        const params = new URLSearchParams({
+          view: 'invite',
+          liffId: state.liffId,
+          botId: state.botId,
+          apiUrl: state.apiUrl,
+          shareCode: state.shareCode,
+          src: state.sourceCode
+        });
+        return location.origin + location.pathname + '?' + params.toString();
+      }
+
+      function getThemeColor() {
+        return getComputedStyle(document.documentElement).getPropertyValue('--theme').trim() || '#06c755';
       }
 
       function claimShareCoupon() {
@@ -491,3 +628,4 @@
     </script>
   </body>
 </html>
+
