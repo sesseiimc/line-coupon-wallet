@@ -916,13 +916,21 @@
       }
 
       function officialChatUrl() {
-        if (!state.botBasicId) return '';
-        return 'https://line.me/R/ti/p/' + encodeURIComponent(state.botBasicId);
+        const basicId = normalizedBotBasicId();
+        if (!basicId) return '';
+        return 'https://line.me/R/ti/p/' + encodeURIComponent(basicId);
       }
 
       function officialLineSchemeUrl() {
-        if (!state.botBasicId) return '';
-        return 'line://ti/p/' + encodeURIComponent(state.botBasicId);
+        const basicId = normalizedBotBasicId();
+        if (!basicId) return '';
+        return 'line://ti/p/' + basicId;
+      }
+
+      function normalizedBotBasicId() {
+        const value = String(state.botBasicId || '').trim();
+        if (!value) return '';
+        return value.charAt(0) === '@' ? value : '@' + value;
       }
 
       function openOfficialLine() {
