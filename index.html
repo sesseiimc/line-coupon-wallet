@@ -917,17 +917,13 @@
 
       function officialChatUrl() {
         if (!state.botBasicId) return '';
-        return 'https://line.me/R/oaMessage/' + encodeURIComponent(state.botBasicId);
+        return 'https://line.me/R/ti/p/' + encodeURIComponent(state.botBasicId);
       }
 
       function openOfficialLine() {
         const url = officialChatUrl();
         if (!url) return;
-        if (window.liff && liff.isInClient()) {
-          liff.openWindow({ url, external: false });
-          return;
-        }
-        location.href = url;
+        window.location.href = url;
       }
 
       function escapeHtml(value) {
@@ -961,4 +957,3 @@
     </script>
   </body>
 </html>
-
