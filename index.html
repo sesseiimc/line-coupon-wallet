@@ -481,7 +481,7 @@
             <h2>好友邀請禮</h2>
             <p>你收到 ${escapeHtml(result.sharerName || state.sharerName || 'LINE 好友')} 的好友分享優惠。點擊下方按鈕後，優惠券會加入你的券庫。</p>
             <div class="invite-code">${escapeHtml(result.shareCode || state.shareCode)}</div>
-            <button class="redeem" id="claimShareCoupon">領取好友邀請券</button>
+            <button class="redeem" id="claimShareCoupon">加入官方帳號領取</button>
           </section>
         `;
         document.getElementById('claimShareCoupon').addEventListener('click', claimShareCoupon);
@@ -613,7 +613,7 @@
                 color: getThemeColor(),
                 action: {
                   type: 'uri',
-                  label: '領取好友邀請券',
+                  label: '加入官方帳號領取',
                   uri: inviteUrl
                 }
               }
