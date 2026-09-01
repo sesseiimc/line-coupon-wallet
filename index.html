@@ -293,6 +293,7 @@
         sharerName: '',
         friendFlag: false,
         joinedFromInvite: false,
+        hasCachedWallet: false,
         coupons: [],
         filter: '可使用',
         pendingRedeem: null,
@@ -333,6 +334,7 @@
         state.shareCode = params.get('shareCode') || '';
         state.shareImageUrl = params.get('imageUrl') || '';
         state.sourceCode = params.get('src') || 'SHARE';
+        applySavedConfig(params);
 
         if (!state.userId) await resolveLiffUser();
         await resolveFriendship();
@@ -372,6 +374,36 @@
         loadWallet();
       }
 
+      function applySavedConfig(params) {
+        const saved = readSavedConfig();
+        if (!state.apiUrl && saved.apiUrl) state.apiUrl = saved.apiUrl;
+        if (!state.botId && saved.botId) state.botId = saved.botId;
+        if (!state.liffId && saved.liffId) state.liffId = saved.liffId;
+        if (state.apiUrl || state.botId || state.liffId) {
+          saveConfig({
+            apiUrl: state.apiUrl,
+            botId: state.botId,
+            liffId: state.liffId
+          });
+        }
+      }
+
+      function readSavedConfig() {
+        try {
+          return JSON.parse(localStorage.getItem('couponWalletConfig') || '{}');
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function saveConfig(config) {
+        try {
+          localStorage.setItem('couponWalletConfig', JSON.stringify(config || {}));
+        } catch (error) {
+          return;
+        }
+      }
+
       async function resolveLiffUser() {
         if (!window.liff || !state.liffId) return;
         try {
@@ -400,7 +432,8 @@
       }
 
       function loadWallet() {
-        showLoading('讀取優惠券庫...');
+        renderCachedWallet();
+        if (!state.hasCachedWallet) showLoading('更新中...');
         callApi('wallet', {}, result => {
           applyPayload(result);
           render();
@@ -471,10 +504,7 @@
       function renderSetupNotice() {
         tabButtons.forEach(button => button.classList.remove('active'));
         list.innerHTML = `
-          <section class="invite">
-            <h2>優惠券庫尚未完成設定</h2>
-            <p>目前尚未取得優惠券庫必要資料，請從官方帳號內的按鈕重新開啟。</p>
-          </section>
+          <div class="empty">目前沒有可使用的優惠券</div>
         `;
       }
 
@@ -482,8 +512,8 @@
         tabButtons.forEach(button => button.classList.remove('active'));
         list.innerHTML = `
           <section class="invite">
-            <h2>好友邀請連結尚未完成設定</h2>
-            <p>這張邀請卡目前缺少必要資料，請回到 LINE 聊天室，請分享者重新產生好友分享卡後再開啟。</p>
+            <h2>邀請禮尚未啟用</h2>
+            <p>這份好友邀請禮目前無法確認領取資料。請回到 LINE 聊天室，從最新的好友分享卡重新開啟。</p>
           </section>
         `;
       }
@@ -696,6 +726,41 @@
         if (result.themeColor) document.documentElement.style.setProperty('--theme', result.themeColor);
         if (result.brandName) title.textContent = result.brandName + '｜我的優惠券庫';
         state.coupons = result.coupons || [];
+        saveWalletCache(result);
+      }
+
+      function renderCachedWallet() {
+        const cached = readWalletCache();
+        if (!cached || !Array.isArray(cached.coupons)) return;
+        state.hasCachedWallet = true;
+        applyPayload(cached);
+        render(state.filter);
+      }
+
+      function walletCacheKey() {
+        return 'couponWalletData:' + String(state.botId || 'default') + ':' + String(state.userId || 'anonymous');
+      }
+
+      function readWalletCache() {
+        try {
+          return JSON.parse(localStorage.getItem(walletCacheKey()) || 'null');
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function saveWalletCache(result) {
+        if (!state.botId || !state.userId || !result || !Array.isArray(result.coupons)) return;
+        try {
+          localStorage.setItem(walletCacheKey(), JSON.stringify({
+            brandName: result.brandName || title.textContent.replace(/｜我的優惠券庫$/, ''),
+            themeColor: result.themeColor || getThemeColor(),
+            coupons: result.coupons,
+            cachedAt: Date.now()
+          }));
+        } catch (error) {
+          return;
+        }
       }
 
       function render(filter) {
