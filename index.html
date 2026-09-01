@@ -71,8 +71,9 @@
         margin-bottom: 10px;
         padding: 18px 16px;
         border-radius: 8px;
-        background: #17202a;
-        color: white;
+        border: 1px solid var(--line);
+        background: white;
+        color: var(--muted);
         font-size: 22px;
       }
       .card {
@@ -335,23 +336,33 @@
 
         if (!state.userId) await resolveLiffUser();
         await resolveFriendship();
-        if (!state.apiUrl || !state.botId) {
-          showNotice('優惠券庫尚未完成設定');
-          render();
-          return;
-        }
-        if (!state.userId) {
-          showNotice('請從 LINE 官方帳號按鈕開啟優惠券庫');
-          render();
-          return;
-        }
         if (params.get('view') === 'shareSend' && state.shareCode) {
           renderShareSender();
           setTimeout(shareToLineFriends, 500);
           return;
         }
         if (params.get('view') === 'invite' && state.shareCode) {
+          if (state.friendFlag && (!state.apiUrl || !state.botId)) {
+            renderExistingFriendNotice();
+            return;
+          }
+          if (!state.apiUrl || !state.botId) {
+            renderInviteSetupNotice();
+            return;
+          }
+          if (!state.userId) {
+            renderOpenFromLineNotice();
+            return;
+          }
           loadInvite();
+          return;
+        }
+        if (!state.apiUrl || !state.botId) {
+          renderSetupNotice();
+          return;
+        }
+        if (!state.userId) {
+          renderOpenFromLineNotice();
           return;
         }
         if (state.claim) {
@@ -455,6 +466,36 @@
           </section>
         `;
         document.getElementById('openWallet').addEventListener('click', loadWallet);
+      }
+
+      function renderSetupNotice() {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="invite">
+            <h2>優惠券庫尚未完成設定</h2>
+            <p>目前尚未取得優惠券庫必要資料，請從官方帳號內的按鈕重新開啟。</p>
+          </section>
+        `;
+      }
+
+      function renderInviteSetupNotice() {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="invite">
+            <h2>好友邀請連結尚未完成設定</h2>
+            <p>這張邀請卡目前缺少必要資料，請回到 LINE 聊天室，請分享者重新產生好友分享卡後再開啟。</p>
+          </section>
+        `;
+      }
+
+      function renderOpenFromLineNotice() {
+        tabButtons.forEach(button => button.classList.remove('active'));
+        list.innerHTML = `
+          <section class="invite">
+            <h2>請從 LINE 官方帳號開啟</h2>
+            <p>為了確認優惠券歸屬，請從 LINE 官方帳號內的按鈕或好友分享卡重新開啟。</p>
+          </section>
+        `;
       }
 
       async function requestOfficialAccountFriendship() {
@@ -737,4 +778,3 @@
     </script>
   </body>
 </html>
-
