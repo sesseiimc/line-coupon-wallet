@@ -601,7 +601,7 @@
         let opened = false;
         if (officialChatUrl()) {
           opened = true;
-          setTimeout(openOfficialLine, 150);
+          openOfficialLine();
         }
         callApi('sharePrepare', { shareCode: state.shareCode }, result => {
           applyPayload(result);
@@ -614,7 +614,7 @@
             return;
           }
           renderOpeningOfficialLine();
-          if (!opened) setTimeout(openOfficialLine, 150);
+          if (!opened) openOfficialLine();
         }, () => {
           if (!opened) renderInviteSetupNotice();
         });
@@ -920,9 +920,20 @@
         return 'https://line.me/R/ti/p/' + encodeURIComponent(state.botBasicId);
       }
 
+      function officialLineSchemeUrl() {
+        if (!state.botBasicId) return '';
+        return 'line://ti/p/' + encodeURIComponent(state.botBasicId);
+      }
+
       function openOfficialLine() {
         const url = officialChatUrl();
         if (!url) return;
+        const appUrl = officialLineSchemeUrl();
+        if (appUrl) {
+          window.location.href = appUrl;
+          setTimeout(() => { window.location.href = url; }, 700);
+          return;
+        }
         window.location.href = url;
       }
 
