@@ -478,6 +478,9 @@
           applyPayload(result);
           showNotice(result.message || '優惠券已加入你的券庫');
           render('可使用');
+        }, () => {
+          showNotice('連線較慢，請重新開啟優惠券庫確認');
+          loadWallet();
         });
       }
 
@@ -799,6 +802,15 @@
       function callApi(api, extraParams, onSuccess, onFailure) {
         const callback = '__couponWalletCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
         const script = document.createElement('script');
+        let completed = false;
+        const timeout = window.setTimeout(() => {
+          if (completed) return;
+          completed = true;
+          delete window[callback];
+          script.remove();
+          showNotice('連線較慢，請稍後再試');
+          if (onFailure) onFailure();
+        }, 8000);
         const params = new URLSearchParams({
           api,
           callback,
@@ -812,6 +824,9 @@
           if (value !== undefined && value !== null && value !== '') params.set(key, value);
         });
         window[callback] = result => {
+          if (completed) return;
+          completed = true;
+          window.clearTimeout(timeout);
           delete window[callback];
           script.remove();
           if (!result || result.ok === false) {
@@ -822,6 +837,9 @@
           onSuccess(result);
         };
         script.onerror = () => {
+          if (completed) return;
+          completed = true;
+          window.clearTimeout(timeout);
           delete window[callback];
           script.remove();
           showNotice('連線失敗，請稍後再試');
@@ -885,7 +903,7 @@
         }
         list.innerHTML = items.map(coupon => `
           <article class="card">
-            ${coupon.imageUrl ? `<img class="card-image" src="${escapeAttr(coupon.imageUrl)}" alt="">` : ''}
+            ${coupon.imageUrl ? `<img class="card-image" src="${escapeAttr(coupon.imageUrl)}" alt="" onerror="this.remove()">` : ''}
             <div class="top">
               <div class="type">${escapeHtml(coupon.type)}</div>
               <div class="status ${statusClass[coupon.status] || 'used'}">${escapeHtml(coupon.status)}</div>
@@ -991,5 +1009,3 @@
     </script>
   </body>
 </html>
-
-
